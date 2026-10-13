@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coin Collector</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a14 100%);
+      font-family: 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-container canvas {
+      border-radius: 12px;
+      box-shadow:
+        0 0 60px rgba(0, 255, 204, 0.15),
+        0 0 120px rgba(255, 215, 0, 0.08);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <!-- Phaser engine (loaded from CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <!-- Our game entry point (ES Module) -->
+  <script type="module" src="game.js"></script>
+</body>
+</html>

@@ -19,6 +19,7 @@ export default class PlayScene extends Phaser.Scene {
     this.score = 0;
     this.timeLeft = 60;
     this.isGameOver = false;
+    this.touchTarget = null;
 
     this.createBackground();
     this.createParticles();
@@ -35,11 +36,9 @@ export default class PlayScene extends Phaser.Scene {
   // AUDIO
   // ============================================================
   setupAudio() {
-    // Unlock browser audio on first interaction
     this.input.once('pointerdown', unlockAudio);
     this.input.keyboard.once('keydown', unlockAudio);
 
-    // Play the start "whoosh" a moment after the scene begins
     this.time.delayedCall(100, () => {
       playStartSound();
     });
@@ -81,16 +80,14 @@ export default class PlayScene extends Phaser.Scene {
   }
 
   // ============================================================
-  // PLAYER (glowing orb)
+  // PLAYER
   // ============================================================
   createPlayer() {
     const cx = this.width / 2;
     const cy = this.height / 2;
 
-    // Soft outer glow
     this.playerGlow = this.add.circle(cx, cy, 32, 0x00ffcc, 0.15);
 
-    // Main orb
     this.player = this.add.circle(cx, cy, 18, 0x00ffcc);
     this.player.setStrokeStyle(3, 0xffffff, 0.9);
     this.physics.add.existing(this.player);
@@ -99,7 +96,6 @@ export default class PlayScene extends Phaser.Scene {
     this.player.body.setDrag(0.85);
     this.player.body.setMaxVelocity(550);
 
-    // Inner highlight
     this.playerHighlight = this.add.circle(cx - 5, cy - 5, 5, 0xffffff, 0.6);
   }
 
@@ -165,25 +161,46 @@ export default class PlayScene extends Phaser.Scene {
     }).setOrigin(1, 0);
     this.timerText.setShadow(0, 0, '#ffffff', 12, true, true);
 
-    const hint = this.add.text(this.width - 20, this.height - 20, 'ARROWS / WASD TO MOVE', {
-      fontSize: '12px',
-      color: '#556688',
-      fontFamily: 'Segoe UI, Arial, sans-serif',
-      letterSpacing: 2
-    });
+    const hint = this.add.text(
+      this.width - 20,
+      this.height - 20,
+      'DRAG TO MOVE  ·  ARROWS / WASD',
+      {
+        fontSize: '12px',
+        color: '#556688',
+        fontFamily: 'Segoe UI, Arial, sans-serif',
+        letterSpacing: 2
+      }
+    );
     hint.setOrigin(1, 1);
   }
 
   // ============================================================
-  // INPUT
+  // INPUT — keyboard + touch/mouse
   // ============================================================
   createInput() {
+    // Keyboard
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D
+    });
+
+    // Touch / mouse — drag anywhere to move the orb
+    this.input.on('pointerdown', (pointer) => {
+      this.touchTarget = { x: pointer.x, y: pointer.y };
+    });
+
+    this.input.on('pointermove', (pointer) => {
+      if (pointer.isDown) {
+        this.touchTarget = { x: pointer.x, y: pointer.y };
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      this.touchTarget = null;
     });
   }
 
@@ -238,7 +255,6 @@ export default class PlayScene extends Phaser.Scene {
 
     this.cameras.main.shake(120, 0.006);
 
-    // Play the coin pickup sound
     playCoinSound();
 
     coinObj.setScale(0);
@@ -293,14 +309,31 @@ export default class PlayScene extends Phaser.Scene {
     const up    = this.cursors.up.isDown    || this.wasd.up.isDown;
     const down  = this.cursors.down.isDown  || this.wasd.down.isDown;
 
-    if (left)       this.player.body.setAccelerationX(-accel);
-    else if (right) this.player.body.setAccelerationX(accel);
-    else            this.player.body.setAccelerationX(0);
+    // ---- Touch / mouse control takes priority when active ----
+    if (this.touchTarget) {
+      const dx = this.touchTarget.x - this.player.x;
+      const dy = this.touchTarget.y - this.player.y;
+      const dist = Math.hypot(dx, dy);
 
-    if (up)         this.player.body.setAccelerationY(-accel);
-    else if (down)  this.player.body.setAccelerationY(accel);
-    else            this.player.body.setAccelerationY(0);
+      if (dist > 4) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        this.player.body.setAcceleration(nx * accel, ny * accel);
+      } else {
+        this.player.body.setAcceleration(0, 0);
+      }
+    } else {
+      // ---- Keyboard control ----
+      if (left)       this.player.body.setAccelerationX(-accel);
+      else if (right) this.player.body.setAccelerationX(accel);
+      else            this.player.body.setAccelerationX(0);
 
+      if (up)         this.player.body.setAccelerationY(-accel);
+      else if (down)  this.player.body.setAccelerationY(accel);
+      else            this.player.body.setAccelerationY(0);
+    }
+
+    // Clamp inside canvas
     this.player.x = Phaser.Math.Clamp(this.player.x, 18, this.width - 18);
     this.player.y = Phaser.Math.Clamp(this.player.y, 18, this.height - 18);
 
@@ -311,11 +344,10 @@ export default class PlayScene extends Phaser.Scene {
     this.playerHighlight.x = this.player.x - 5;
     this.playerHighlight.y = this.player.y - 5;
 
-    // Pulse player glow
     const pulse = 1 + Math.sin(Date.now() * 0.005) * 0.15;
     this.playerGlow.setScale(pulse);
 
-    // Animate coin
+    // Coin animation
     if (this.coin.active) {
       const angle = Date.now() * 0.003;
       const radius = 8;
